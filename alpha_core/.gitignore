@@ -1,0 +1,7 @@
+
+srt ¹ø¿ª/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
