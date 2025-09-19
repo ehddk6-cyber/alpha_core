@@ -168,6 +168,12 @@ class BacktestEngine:
         df["sma_long"] = df["close"].rolling(long_window).mean()
         df.dropna(inplace=True)
 
+        if df.empty:
+            raise ValueError(
+                "Insufficient data after applying moving averages: "
+                f"requires at least {long_window} rows but got {len(df)} for {symbol}"
+            )
+
         df["position"] = np.where(df["sma_short"] > df["sma_long"], 1.0, 0.0)
         df["position_shifted"] = df["position"].shift(1).fillna(0.0)
         df["turnover"] = (df["position_shifted"] - df["position_shifted"].shift(1).fillna(0.0)).abs()
