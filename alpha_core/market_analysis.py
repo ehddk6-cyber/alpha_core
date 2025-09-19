@@ -189,9 +189,26 @@ class BacktestEngine:
         running_max = equity.cummax()
         drawdown = equity / running_max - 1
         max_dd = drawdown.min()
-        wins = (df["strategy_return"] > 0).sum()
-        total_trades = int((df["turnover"] > 0).sum())
-        win_rate = wins / max(total_trades, 1)
+        df["is_entry"] = (
+            (df["turnover"] > 0)
+            & (
+                df["position_shifted"]
+                > df["position_shifted"].shift(1, fill_value=0)
+            )
+        )
+        df["trade_id"] = df["is_entry"].cumsum()
+
+        in_position = df["position_shifted"] > 0
+        trade_returns = (
+            df.loc[in_position]
+            .groupby("trade_id")["strategy_return"]
+            .apply(lambda returns: (1 + returns).prod() - 1)
+        )
+        trade_returns = trade_returns[trade_returns.index > 0]
+
+        wins = (trade_returns > 0).sum()
+        total_trades = int(trade_returns.count())
+        win_rate = wins / total_trades if total_trades else 0.0
 
         equity_curve = df[["equity_curve", "buy_hold_curve"]].copy()
         equity_curve.columns = ["strategy", "buy_hold"]
@@ -238,5 +255,6 @@ if __name__ == "__main__":
             f"\n{symbol} Backtest ({report.strategy})\n"
             f"Total Return: {report.total_return_pct:.2f}%\n"
             f"CAGR: {report.cagr_pct:.2f}% | Sharpe: {report.sharpe_ratio:.2f}\n"
-            f"Max Drawdown: {report.max_drawdown_pct:.2f}% | Trades: {report.trades}"
+            f"Max Drawdown: {report.max_drawdown_pct:.2f}% | "
+            f"Trades: {report.trades} | Win Rate: {report.win_rate_pct:.2f}%"
         )
